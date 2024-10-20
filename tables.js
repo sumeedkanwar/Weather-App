@@ -1,6 +1,7 @@
 // Constants
 const API_KEY = "81a1736ac7277e352d742bdf30c13ac8";
 const BASE_URL = "https://api.openweathermap.org/data/2.5";
+const GEMINI_API_KEY = "AIzaSyB7ByD8qNVelWmVmjHDNtekDRmY9cjtSa4";
 
 // DOM Elements
 const elements = {
@@ -55,11 +56,23 @@ function showError(message) {
 }
 
 // API Calls
+async function fetchCurrentWeather(city) {
+    const units = elements.unitSelect.value;
+    const url = `${BASE_URL}/weather?q=${city}&units=${units}&appid=${API_KEY}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Weather data not available for ${city}`);
+    }
+    return response.json();
+}
+
 async function fetchForecastData(city) {
     const units = elements.unitSelect.value;
     const url = `${BASE_URL}/forecast?q=${city}&units=${units}&appid=${API_KEY}`;
     const response = await fetch(url);
-    if (!response.ok) throw new Error('Forecast data not available');
+    if (!response.ok) {
+        throw new Error(`Forecast data not available for ${city}`);
+    }
     return response.json();
 }
 
@@ -159,7 +172,7 @@ function changePage(direction) {
 }
 
 // Handle chat submit
-function handleChatSubmit(e) {
+async function handleChatSubmit(e) {
     e.preventDefault();
     const userMessage = elements.chatInput.value.trim();
     if (!userMessage) return;
@@ -167,8 +180,17 @@ function handleChatSubmit(e) {
     addChatMessage('user', userMessage);
     elements.chatInput.value = '';
 
-    const botResponse = generateBotResponse(userMessage);
-    addChatMessage('bot', botResponse);
+    // Show a loading message
+    const loadingMessageId = addChatMessage('bot', 'Thinking...');
+
+    try {
+        const botResponse = await generateBotResponse(userMessage);
+        // Replace the loading message with the actual response
+        updateChatMessage(loadingMessageId, 'bot', botResponse);
+    } catch (error) {
+        console.error('Error generating bot response:', error);
+        updateChatMessage(loadingMessageId, 'bot', "I'm sorry, I encountered an error. Please try again.");
+    }
 }
 
 // Add chat message
@@ -183,39 +205,79 @@ function addChatMessage(sender, message) {
     
     elements.chatMessages.appendChild(messageElement);
     elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    return messageElement.id = `message-${Date.now()}`; // Return the ID of the new message
 }
 
-// Generate bot response
-function generateBotResponse(userMessage) {
+// Update chat message
+function updateChatMessage(messageId, sender, newMessage) {
+    const messageElement = document.getElementById(messageId);
+    if (messageElement) {
+        messageElement.innerHTML = `
+            <span class="inline-block px-4 py-2 rounded-lg ${sender === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}">
+                ${newMessage}
+            </span>
+        `;
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    }
+}
+
+// Generate bot response using Gemini API
+async function generateBotResponse(userMessage) {
     const lowercaseMessage = userMessage.toLowerCase();
 
     if (!lowercaseMessage.includes('weather')) {
         return "I'm sorry, I can only answer weather-related questions. Please ask about the weather.";
     }
 
-    if (lowercaseMessage.includes('highest') && lowercaseMessage.includes('temperature')) {
-        const highestTemp = Math.max(...forecastData.map(item => item.temp));
-        return `The highest temperature in the forecast is ${highestTemp.toFixed(1)}°${elements.unitSelect.value === 'metric' ? 'C' : 'F'}.`;
-    }
+    // Extract city name from the user's message
+    const cityMatch = lowercaseMessage.match(/weather (?:in|at|for) (\w+)/i);
+    const city = cityMatch ? cityMatch[1] : elements.cityInput.value;
 
-    if (lowercaseMessage.includes('lowest') && lowercaseMessage.includes('temperature')) {
-        const lowestTemp = Math.min(...forecastData.map(item => item.temp));
-        return `The lowest temperature in the forecast is ${lowestTemp.toFixed(1)}°${elements.unitSelect.value === 'metric' ? 'C' : 'F'}.`;
-    }
+    try {
+        const [weatherData, forecastData] = await Promise.all([
+            fetchCurrentWeather(city),
+            fetchForecastData(city)
+        ]);
 
-    if (lowercaseMessage.includes('average') && lowercaseMessage.includes('temperature')) {
-        const avgTemp = forecastData.reduce((sum, item) => sum + item.temp, 0) / forecastData.length;
-        return `The average temperature in the forecast is ${avgTemp.toFixed(1)}°${elements.unitSelect.value === 'metric' ? 'C' : 'F'}.`;
-    }
+        const prompt = `
+        You are a weather chatbot. Answer the following question based on this weather data:
+        Current weather: ${JSON.stringify(weatherData)}
+        Forecast: ${JSON.stringify(processForecastData(forecastData))}
+        
+        User question: ${userMessage}
+        
+        Provide a concise and accurate response based solely on the given weather data. If the question cannot be answered with the available information, politely state that you don't have enough information to answer.
+        `;
 
-    if (lowercaseMessage.includes('rainy') || lowercaseMessage.includes('rain')) {
-        const rainyDays = forecastData.filter(item => item.weather.toLowerCase().includes('rain'));
-        return rainyDays.length > 0
-            ? `There are ${rainyDays.length} rainy days in the forecast.`
-            : 'There are no rainy days in the forecast.';
-    }
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    temperature: 0.7,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 1024,
+                },
+            }),
+        });
 
-    return "I'm sorry, I don't have enough information to answer that specific weather question. You can ask about highest, lowest, and average temperatures, or about rainy days in the forecast.";
+        if (!response.ok) {
+            throw new Error('Failed to generate response from Gemini API');
+        }
+
+        const data = await response.json();
+        return data.candidates[0].content.parts[0].text;
+    } catch (error) {
+        console.error('Error processing weather query:', error);
+        if (error.message.includes('Weather data not available') || error.message.includes('Forecast data not available')) {
+            return `I'm sorry, I couldn't fetch weather data for ${city}. Please check the city name and try again.`;
+        }
+        return "I'm sorry, I encountered an error while processing your request. Please try again later.";
+    }
 }
 
 // Filter functions
