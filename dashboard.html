@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <title>Weather Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        /* Weather background classes */
+        .weather-clear {
+            background: linear-gradient(to bottom right, #87CEEB, #4682B4);
+        }
+
+        .weather-clouds {
+            background: linear-gradient(to bottom right, #708090, #2F4F4F);
+        }
+
+        .weather-rain {
+            background: linear-gradient(to bottom right, #4682B4, #000080);
+        }
+
+        .weather-thunderstorm {
+            background: linear-gradient(to bottom right, #483D8B, #191970);
+        }
+
+        .weather-snow {
+            background: linear-gradient(to bottom right, #B0C4DE, #708090);
+        }
+
+        .weather-mist {
+            background: linear-gradient(to bottom right, #778899, #2F4F4F);
+        }
+
+        .weather-night {
+            background: linear-gradient(to bottom right, #191970, #000000);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100">
+    <div class="flex min-h-screen">
+        <!-- Sidebar -->
+        <aside class="fixed inset-y-0 left-0 w-64 bg-gray-700 shadow-lg z-10">
+            <div class="p-4 text-center">
+                <i class="fas fa-cloud-sun text-6xl text-white"></i>
+            </div>
+            <ul class="mt-8">
+                <li class="mb-2">
+                    <a href="./dashboard.html"
+                        class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-600 hover:text-white rounded-lg transition-colors">
+                        <span class="material-icons mr-2">dashboard</span>
+                        <span>Dashboard</span>
+                    </a>
+                </li>
+                <li>
+                    <a href="./tables.html"
+                        class="flex items-center px-4 py-3 text-gray-300 hover:bg-gray-600 hover:text-white rounded-lg transition-colors">
+                        <span class="material-icons mr-2">table_chart</span>
+                        <span>Tables</span>
+                    </a>
+                </li>
+            </ul>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 ml-64 p-8 transition-all duration-300">
+            <!-- Search Section -->
+            <section class="mb-8">
+                <div class="flex flex-col md:flex-row gap-4 items-center justify-center">
+                    <div class="relative flex-1 max-w-xl">
+                        <input type="text" id="cityInput" placeholder="Enter city name"
+                            class="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <button id="locationBtn"
+                            class="absolute right-12 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-blue-500"
+                            title="Use current location">
+                            <i class="fas fa-location-dot"></i>
+                        </button>
+                        <button id="searchBtn"
+                            class="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-blue-500">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                    <select id="unitSelect" class="px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500">
+                        <option value="metric">Celsius</option>
+                        <option value="imperial">Fahrenheit</option>
+                    </select>
+                </div>
+                <div id="errorMessage" class="hidden mt-4 p-4 bg-red-100 text-red-700 rounded-lg text-center"></div>
+            </section>
+
+            <!-- Weather Widget Container -->
+            <section id="weatherWidget"
+                class="relative rounded-xl shadow-lg p-8 mb-8 min-h-[300px] transition-all duration-500 weather-clear">
+                <!-- Weather Info Container with Glassmorphism -->
+                <div class="relative z-10 backdrop-blur-sm bg-white/10 rounded-xl p-6 text-white shadow-lg">
+                    <div class="flex flex-col lg:flex-row justify-between items-center gap-8">
+                        <!-- Left Side - Main Weather Info -->
+                        <div class="text-center lg:text-left flex-1">
+                            <div class="flex items-center justify-center lg:justify-start gap-4 mb-4">
+                                <img id="weatherIcon" src="" alt="Weather Icon" class="w-20 h-20 object-contain">
+                                <div>
+                                    <h2 id="cityName" class="text-3xl font-bold mb-1">-</h2>
+                                    <div id="weatherDescription" class="text-lg capitalize opacity-90">-</div>
+                                </div>
+                            </div>
+                            <div id="temperature" class="text-7xl font-bold tracking-tight">--°</div>
+                        </div>
+
+                        <!-- Right Side - Weather Details -->
+                        <div class="grid grid-cols-2 gap-8 p-4 rounded-xl backdrop-blur-sm bg-black/10">
+                            <!-- Humidity -->
+                            <div class="text-center p-3">
+                                <div class="flex flex-col items-center gap-2">
+                                    <i class="fas fa-droplet text-2xl opacity-80"></i>
+                                    <h3 class="text-sm uppercase tracking-wide opacity-80">Humidity</h3>
+                                    <p id="humidity" class="text-2xl font-semibold">--%</p>
+                                </div>
+                            </div>
+
+                            <!-- Wind Speed -->
+                            <div class="text-center p-3">
+                                <div class="flex flex-col items-center gap-2">
+                                    <i class="fas fa-wind text-2xl opacity-80"></i>
+                                    <h3 class="text-sm uppercase tracking-wide opacity-80">Wind Speed</h3>
+                                    <p id="windSpeed" class="text-2xl font-semibold">-- m/s</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Charts Grid -->
+            <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-4">5-Day Temperature Forecast</h3>
+                    <canvas id="tempBarChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-4">Weather Distribution</h3>
+                    <canvas id="weatherDoughnutChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-4">Temperature Trend</h3>
+                    <canvas id="tempLineChart"></canvas>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loader" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+    <script src="dashboard.js"></script>
+</body>
+
+</html>
