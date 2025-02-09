@@ -4,6 +4,9 @@
 
 The Weather Dashboard is a web application that provides real-time weather information and forecasts for any city around the world. It features a user-friendly interface with a sidebar navigation, search functionality, and dynamic weather widgets. The application also includes interactive charts and a chatbot for weather-related queries.
 
+![image](https://github.com/user-attachments/assets/3bdf2a21-362d-42a1-93f7-1ee29cee6a6c)
+
+
 ## Features
 
 - **Real-Time Weather Data**: Get current weather conditions for any city.
